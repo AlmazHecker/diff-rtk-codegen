@@ -120,7 +120,7 @@ function rebuildApiFile(
                         "response",
                         ts.factory.createKeywordTypeNode(
                            ts.SyntaxKind.AnyKeyword
-                        )
+                        ))
                   ]),
                   ts.factory.updateObjectLiteralExpression(node.arguments[1], [
                      invalidatesTags
