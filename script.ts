@@ -2,174 +2,445 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as ts from "typescript";
+import { CallExpression } from "typescript";
 
-const apiFilePath = path.join(__dirname, "./api.ts");
-const generatedFilePath = path.join(__dirname, "./generated.ts");
+const apiFilePath = path.join(__dirname, "./test-data/api.ts");
+const generatedFilePath = path.join(__dirname, "./test-data/generated.ts");
 
-function readFile(filePath: string) {
-   const fileContent = fs.readFileSync(filePath, "utf-8");
-   return ts.createSourceFile(
-      filePath,
-      fileContent,
-      ts.ScriptTarget.Latest,
-      true
-   );
+/**
+ * Reads a file and parses it as a TypeScript SourceFile
+ */
+function readFile(filePath: string): ts.SourceFile {
+  const fileContent = fs.readFileSync(filePath, "utf-8");
+  return ts.createSourceFile(
+    filePath,
+    fileContent,
+    ts.ScriptTarget.Latest,
+    true,
+  );
 }
 
+/**
+ * Extract endpoint details (arguments and configurations) from the source file
+ */
 function extractEndpointInfo(sourceFile: ts.SourceFile) {
-   const endpoints: Record<string, any> = {};
+  const endpoints: Record<string, any> = {};
 
-   ts.forEachChild(sourceFile, (node) => {
+  function visit(node: ts.Node) {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression)
+    ) {
+      const expressionText = node.expression.getText();
+
       if (
-         (ts.isCallExpression(node) &&
-            node.expression.getText() === "build.mutation") ||
-         node.expression?.getText?.() === "build.query"
+        expressionText === "build.mutation" ||
+        expressionText === "build.query"
       ) {
-         const endpointName = node.parent?.name?.getText();
-         const invalidatesTagsNode = node.arguments[1]?.properties?.find(
-            (prop) => prop.name?.getText() === "invalidatesTags"
-         );
-         const providesTagsNode = node.arguments[1]?.properties?.find(
-            (prop) => prop.name?.getText() === "providesTags"
-         );
+        const endpointName = (
+          node.parent as ts.PropertyDeclaration
+        )?.name?.getText();
 
-         endpoints[endpointName!] = {
-            invalidatesTags: invalidatesTagsNode
-               ? invalidatesTagsNode.initializer.getText()
-               : undefined,
-            providesTags: providesTagsNode
-               ? providesTagsNode.initializer.getText()
-               : undefined,
-            responseType: node.arguments[0]?.type?.getText(),
-            argType: node.arguments[1]?.properties
-               ?.find((prop) => prop.name?.getText() === "query")
-               ?.type?.getText(),
-         };
+        const configArg = node.arguments[0];
+        if (!configArg || !ts.isObjectLiteralExpression(configArg)) {
+          console.warn(
+            `Skipping invalid or missing config object for endpoint: ${endpointName}`,
+          );
+          return;
+        }
+
+        const queryProp = configArg.properties.find(
+          (prop) => prop.name && prop.name.getText() === "query",
+        );
+
+        if (!queryProp || !ts.isPropertyAssignment(queryProp)) {
+          console.warn(
+            `Skipping invalid or missing 'query' property for endpoint: ${endpointName}`,
+          );
+          return;
+        }
+
+        const queryFunction = queryProp.initializer;
+        if (
+          !ts.isArrowFunction(queryFunction) &&
+          !ts.isFunctionExpression(queryFunction)
+        ) {
+          console.warn(
+            `Expected a function for 'query' in endpoint: ${endpointName}`,
+          );
+          return;
+        }
+
+        const queryObject = extractQueryObject(queryFunction);
+
+        endpoints[endpointName!] = {
+          node,
+          queryObject,
+          type: expressionText,
+        };
       }
-   });
+    }
 
-   return endpoints;
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return endpoints;
 }
 
+/**
+ * Extract the return value of the query function (which is an object literal)
+ */
+function extractQueryObject(
+  queryFunction: ts.ArrowFunction | ts.FunctionExpression,
+) {
+  const queryObject: Record<string, any> = {};
+
+  if (ts.isArrowFunction(queryFunction)) {
+    const body = queryFunction.body;
+
+    if (ts.isParenthesizedExpression(body)) {
+      if (ts.isObjectLiteralExpression(body.expression)) {
+        const returnExpression = body.expression;
+
+        returnExpression.properties.forEach((prop) => {
+          const propName = prop.name?.getText();
+          const propValue = prop.initializer;
+
+          if (propName && propValue) {
+            if (ts.isObjectLiteralExpression(propValue)) {
+              queryObject[propName] = extractObjectLiteral(propValue);
+            } else {
+              queryObject[propName] = propValue.getText();
+            }
+          }
+        });
+      }
+    } else if (ts.isObjectLiteralExpression(body)) {
+      const returnExpression = body;
+
+      returnExpression.properties.forEach((prop) => {
+        const propName = prop.name?.getText();
+        const propValue = prop.initializer;
+
+        if (propName && propValue) {
+          if (ts.isObjectLiteralExpression(propValue)) {
+            queryObject[propName] = extractObjectLiteral(propValue);
+          } else {
+            queryObject[propName] = propValue.getText();
+          }
+        }
+      });
+    } else {
+      console.warn("Unexpected query function body structure");
+    }
+  } else if (
+    ts.isFunctionExpression(queryFunction) &&
+    ts.isBlock(queryFunction.body)
+  ) {
+    const returnStatement = queryFunction.body.statements.find((stmt) =>
+      ts.isReturnStatement(stmt),
+    );
+    if (returnStatement && returnStatement.expression) {
+      const returnExpression = returnStatement.expression;
+      if (ts.isObjectLiteralExpression(returnExpression)) {
+        returnExpression.properties.forEach((prop) => {
+          const propName = prop.name?.getText();
+          const propValue = prop.initializer;
+
+          if (propName && propValue) {
+            if (ts.isObjectLiteralExpression(propValue)) {
+              queryObject[propName] = extractObjectLiteral(propValue);
+            } else {
+              queryObject[propName] = propValue.getText();
+            }
+          }
+        });
+      }
+    }
+  }
+
+  return queryObject;
+}
+
+/**
+ * Helper function to extract properties from object literal expressions
+ */
+function extractObjectLiteral(objectLiteral: ts.ObjectLiteralExpression) {
+  const obj: Record<string, any> = {};
+  objectLiteral.properties.forEach((prop) => {
+    const propName = prop.name?.getText();
+    const propValue = prop.initializer;
+
+    if (propName && propValue) {
+      if (ts.isObjectLiteralExpression(propValue)) {
+        obj[propName] = extractObjectLiteral(propValue);
+      } else {
+        obj[propName] = propValue.getText();
+      }
+    }
+  });
+  return obj;
+}
+
+/**
+ * Merges two endpoint definitions
+ * - Adds new properties
+ * - Retains custom properties from the original API
+ * - Removes deleted APIs
+ */
 function mergeEndpoints(
-   apiEndpoints: Record<string, any>,
-   generatedEndpoints: Record<string, any>
+  apiEndpoints: Record<string, any>,
+  generatedEndpoints: Record<string, any>,
+  overrides?: Record<string, any>,
 ) {
-   const mergedEndpoints = { ...apiEndpoints };
+  const mergedEndpoints: Record<string, any> = {};
 
-   for (const [key, generatedEndpoint] of Object.entries(generatedEndpoints)) {
-      const apiEndpoint = apiEndpoints[key];
+  for (const [key, generatedEndpoint] of Object.entries(generatedEndpoints)) {
+    const apiEndpoint = apiEndpoints[key];
 
-      if (apiEndpoint) {
-         if (generatedEndpoint.responseType !== apiEndpoint.responseType) {
-            mergedEndpoints[key].responseType = generatedEndpoint.responseType;
-         }
+    mergedEndpoints[key] = apiEndpoint
+      ? {
+          ...generatedEndpoint,
+          ...apiEndpoint,
+          args: {
+            ...generatedEndpoint.args,
+            ...apiEndpoint.args,
+          },
+          query: mergeQueryFunction(
+            generatedEndpoint.queryObject,
+            apiEndpoint.queryObject,
+          ),
+        }
+      : generatedEndpoint;
+  }
 
-         if (generatedEndpoint.argType !== apiEndpoint.argType) {
-            mergedEndpoints[key].argType = generatedEndpoint.argType;
-         }
-
-         if (generatedEndpoint.argType && !apiEndpoint.argType) {
-            mergedEndpoints[key].argType = generatedEndpoint.argType;
-         }
-
-         mergedEndpoints[key].invalidatesTags =
-            apiEndpoint.invalidatesTags || generatedEndpoint.invalidatesTags;
-         mergedEndpoints[key].providesTags =
-            apiEndpoint.providesTags || generatedEndpoint.providesTags;
-      } else {
-         mergedEndpoints[key] = { ...generatedEndpoint };
+  if (overrides) {
+    for (const [key, override] of Object.entries(overrides)) {
+      if (mergedEndpoints[key]) {
+        mergedEndpoints[key].args.responseType = override.responseType;
+        mergedEndpoints[key].args.argType = override.argType;
       }
-   }
+    }
+  }
 
-   return mergedEndpoints;
+  return mergedEndpoints;
 }
 
+/**
+ * Merges two query functions, extracting and combining their query arguments and bodies.
+ */
+function mergeQueryFunction(
+  generatedQuery: Function | undefined,
+  apiQuery: Function | undefined,
+) {
+  if (!generatedQuery && !apiQuery) return undefined;
+
+  if (generatedQuery && apiQuery) {
+    const generatedQueryBody = extractQueryObject(generatedQuery);
+    const apiQueryBody = extractQueryObject(apiQuery);
+
+    return (queryArg: any) => ({
+      ...generatedQueryBody(queryArg),
+      ...apiQueryBody(queryArg),
+    });
+  }
+
+  return generatedQuery || apiQuery;
+}
+
+/**
+ * Rebuilds the API file with updated endpoints
+ */
+/**
+ * Rebuilds the API file with updated endpoints
+ */
 function rebuildApiFile(
-   mergedEndpoints: Record<string, any>,
-   originalSource: ts.SourceFile
+  mergedEndpoints: Record<string, any>,
+  originalSource: ts.SourceFile,
 ) {
-   const printer = ts.createPrinter();
-   const newStatements = [];
+  const printer = ts.createPrinter();
+  const newStatements: ts.Statement[] = [];
 
-   ts.forEachChild(originalSource, (node) => {
-      if (
-         ts.isCallExpression(node) &&
-         (node.expression.getText() === "build.mutation" ||
-            node.expression?.getText?.() === "build.query")
-      ) {
-         const endpointName = node.parent?.name?.getText();
-         if (mergedEndpoints[endpointName!]) {
-            const { invalidatesTags, providesTags, responseType, argType } =
-               mergedEndpoints[endpointName!];
+  ts.forEachChild(originalSource, (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ["build.mutation", "build.query"].includes(node.expression.getText())
+    ) {
+      const endpointName = (
+        node.parent as ts.PropertyDeclaration
+      )?.name?.getText();
 
-            const updatedNode = ts.factory.updateCallExpression(
-               node,
-               node.expression,
-               node.typeArguments,
-               [
-                  ts.factory.updateObjectLiteralExpression(node.arguments[0], [
-                     ts.factory.createPropertyAssignment(
-                        "query",
-                        node.arguments[0].properties?.find(
-                           (prop) => prop.name?.getText() === "query"
-                        )?.initializer ||
-                           node.arguments[0].properties![0].initializer
-                     ),
-                     ts.factory.createPropertyAssignment(
-                        "response",
-                        ts.factory.createKeywordTypeNode(
-                           ts.SyntaxKind.AnyKeyword
-                        ))
-                  ]),
-                  ts.factory.updateObjectLiteralExpression(node.arguments[1], [
-                     invalidatesTags
-                        ? ts.factory.createPropertyAssignment(
-                             "invalidatesTags",
-                             ts.factory.createArrayLiteralExpression([
-                                ts.factory.createStringLiteral(invalidatesTags),
-                             ])
-                          )
-                        : undefined,
-                     providesTags
-                        ? ts.factory.createPropertyAssignment(
-                             "providesTags",
-                             ts.factory.createArrayLiteralExpression([
-                                ts.factory.createStringLiteral(providesTags),
-                             ])
-                          )
-                        : undefined,
-                  ]),
-               ]
-            );
-            newStatements.push(updatedNode);
-         }
-      } else {
-         newStatements.push(node);
+      if (mergedEndpoints[endpointName!]) {
+        const { args, query, queryObject } = mergedEndpoints[endpointName!];
+
+        const updatedNode = ts.factory.updateCallExpression(
+          node,
+          node.expression,
+          node.typeArguments,
+          [
+            node.arguments[0],
+            ts.factory.createObjectLiteralExpression(
+              [
+                ...Object.entries(args || {}).map(([key, value]) => {
+                  return ts.factory.createPropertyAssignment(
+                    key,
+                    typeof value === "string"
+                      ? ts.factory.createStringLiteral(value)
+                      : ts.factory.createIdentifier(value),
+                  );
+                }),
+
+                query
+                  ? ts.factory.createPropertyAssignment("query", query)
+                  : undefined,
+
+                queryObject
+                  ? ts.factory.createPropertyAssignment(
+                      "query",
+                      ts.factory.createArrowFunction(
+                        undefined,
+                        undefined,
+                        [],
+                        undefined,
+                        ts.factory.createToken(
+                          ts.SyntaxKind.EqualsGreaterThanToken,
+                        ),
+                        ts.factory.createBlock([
+                          ts.factory.createReturnStatement(
+                            ts.factory.createObjectLiteralExpression(
+                              Object.entries(queryObject).map(([key, value]) =>
+                                ts.factory.createPropertyAssignment(
+                                  key,
+                                  typeof value === "string"
+                                    ? ts.factory.createStringLiteral(value)
+                                    : ts.factory.createIdentifier(value),
+                                ),
+                              ),
+                              true,
+                            ),
+                          ),
+                        ]),
+                      ),
+                    )
+                  : undefined,
+              ].filter(Boolean),
+              true,
+            ),
+          ],
+        );
+
+        newStatements.push(updatedNode);
+        delete mergedEndpoints[endpointName!];
       }
-   });
+    } else {
+      newStatements.push(node);
+    }
+  });
 
-   const resultFile = ts.factory.updateSourceFile(
-      originalSource,
-      newStatements
-   );
-   const newContent = printer.printFile(resultFile);
+  for (const [key, { args, query, queryObject, type }] of Object.entries(
+    mergedEndpoints,
+  )) {
+    if (!args && !query && !queryObject) {
+      console.warn(`Skipping empty or invalid endpoint: ${key}`);
+      continue;
+    }
 
-   fs.writeFileSync(apiFilePath, newContent, "utf-8");
+    newStatements.push(
+      ts.factory.createVariableStatement(
+        undefined,
+        ts.factory.createVariableDeclarationList(
+          [
+            ts.factory.createVariableDeclaration(
+              key,
+              undefined,
+              undefined,
+              ts.factory.createCallExpression(
+                ts.factory.createIdentifier(type),
+                undefined,
+                [
+                  ts.factory.createObjectLiteralExpression(
+                    [
+                      ...Object.entries(args || {}).map(([argKey, argValue]) =>
+                        ts.factory.createPropertyAssignment(
+                          argKey,
+                          typeof argValue === "string"
+                            ? ts.factory.createStringLiteral(argValue)
+                            : ts.factory.createIdentifier(argValue),
+                        ),
+                      ),
+                      queryObject
+                        ? ts.factory.createPropertyAssignment(
+                            "query",
+                            ts.factory.createArrowFunction(
+                              undefined,
+                              undefined,
+                              [],
+                              undefined,
+                              ts.factory.createToken(
+                                ts.SyntaxKind.EqualsGreaterThanToken,
+                              ),
+                              ts.factory.createBlock([
+                                ts.factory.createReturnStatement(
+                                  ts.factory.createObjectLiteralExpression(
+                                    Object.entries(queryObject).map(
+                                      ([key, value]) =>
+                                        ts.factory.createPropertyAssignment(
+                                          key,
+                                          typeof value === "string"
+                                            ? ts.factory.createStringLiteral(
+                                                value,
+                                              )
+                                            : ts.factory.createIdentifier(
+                                                value,
+                                              ),
+                                        ),
+                                    ),
+                                    true,
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          )
+                        : undefined,
+                    ].filter(Boolean),
+                    true,
+                  ),
+                ],
+              ),
+            ),
+          ],
+          ts.NodeFlags.Const,
+        ),
+      ),
+    );
+  }
+
+  const resultFile = ts.factory.updateSourceFile(originalSource, newStatements);
+  const newContent = printer.printFile(resultFile);
+
+  fs.writeFileSync("./bebra.ts", newContent, "utf-8");
 }
 
-function mergeApiFiles() {
-   const apiSource = readFile(apiFilePath);
-   const generatedSource = readFile(generatedFilePath);
+/**
+ * Main function to merge API files
+ */
+function mergeApiFiles(overrides?: Record<string, any>) {
+  const apiSource = readFile(apiFilePath);
+  const generatedSource = readFile(generatedFilePath);
 
-   const apiEndpoints = extractEndpointInfo(apiSource);
-   const generatedEndpoints = extractEndpointInfo(generatedSource);
+  const apiEndpoints = extractEndpointInfo(apiSource);
+  const generatedEndpoints = extractEndpointInfo(generatedSource);
 
-   const mergedEndpoints = mergeEndpoints(apiEndpoints, generatedEndpoints);
+  const mergedEndpoints = mergeEndpoints(
+    apiEndpoints,
+    generatedEndpoints,
+    overrides,
+  );
 
-   rebuildApiFile(mergedEndpoints, apiSource);
+  rebuildApiFile(mergedEndpoints, apiSource);
 
-   console.log("API files merged successfully!");
+  console.log("API files merged successfully!");
 }
 
 mergeApiFiles();
