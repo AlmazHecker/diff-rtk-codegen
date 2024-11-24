@@ -64,6 +64,7 @@ export type DeleteApiRoleDelApiArg = {
   roleId: string;
 };
 export type RoleDto = {
+  random: "bebra";
   id?: string;
   name?: string;
   permissions?: (

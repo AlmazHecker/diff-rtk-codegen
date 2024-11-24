@@ -1,7 +1,6 @@
 import * as ts from "typescript";
 import { Api } from "../types/Api";
 import { generateEndpoints } from "./createEndpoints";
-import { createTypes } from "./createTypes";
 
 const generateInjectEndpoints = (api: Api) => {
   return ts.factory.createCallExpression(

@@ -15,5 +15,8 @@
     "prettier": "^3.3.3",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
+  },
+  "dependencies": {
+    "ts-morph": "^24.0.0"
   }
 }

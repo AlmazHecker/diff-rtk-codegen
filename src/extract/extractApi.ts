@@ -55,12 +55,8 @@ export const extractApi = (sourceFile: ts.SourceFile): Api => {
       }
     }
 
-    if (ts.isTypeAliasDeclaration(node)) {
-      rtkApi.types[node.name.escapedText as string] = node.type;
-
-      if (ts.isUnionTypeNode(node.type)) {
-        // console.log(node.type.getText());
-      }
+    if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) {
+      rtkApi.types[node.name.escapedText as string] = node;
     }
 
     ts.forEachChild(node, visit);
