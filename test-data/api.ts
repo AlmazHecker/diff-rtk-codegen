@@ -1,4 +1,7 @@
 import { baseApi as api } from "../../../shared/api/baseApi";
+
+let variable = 10;
+
 const injectedRtkApi = api
   .enhanceEndpoints({
     addTagTypes: ["Roles", "Permissions"],
@@ -11,7 +14,12 @@ const injectedRtkApi = api
           url: `/api/role/update`,
           method: "POST",
           body: queryArg.roleDto,
+          bebrachka: () => {
+            return variable;
+          },
+          responseHandler: () => {},
         }),
+        responseHandler: () => {},
         invalidatesTags: ["Roles"],
       }),
       deleteApiRoleDel: build.mutation<

@@ -1,9 +1,16 @@
 import * as ts from "typescript";
 import { errorLog } from "../utils/log";
 
-export const extractTagTypes = (
-  enhanceEndpointsNode: ts.ObjectLiteralExpression,
-) => {
+export const extractTagTypes = (node: ts.CallExpression) => {
+  const enhanceEndpointsNode = node.arguments[0];
+  if (
+    !enhanceEndpointsNode ||
+    !ts.isObjectLiteralExpression(enhanceEndpointsNode)
+  ) {
+    return;
+  }
+  // rtkApi.tagTypes = extractTagTypes(enhanceEndpointsNode);
+
   const tagTypesProperty = enhanceEndpointsNode.properties.find(
     (prop) => prop.name && prop.name.getText() === "addTagTypes",
   );

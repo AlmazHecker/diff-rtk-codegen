@@ -2,9 +2,14 @@ import * as ts from "typescript";
 import { Endpoint } from "../types/Endpoint";
 
 // values from query: { ... }
-type RecordType = Record<string, unknown> | string;
+type RecordType = ts.Node | Record<string, unknown> | string;
 
 const createObjectLiteralFromRecord = (record: RecordType) => {
+  // @ts-ignore
+  if (ts.isFunctionExpression(record) || ts.isArrowFunction(record)) {
+    return record;
+  }
+
   if (typeof record === "string") {
     return ts.factory.createStringLiteral(record);
   }

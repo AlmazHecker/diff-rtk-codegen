@@ -3,10 +3,15 @@ import * as fs from "fs";
 import { Api } from "../types/Api";
 import { createApi } from "./createApi";
 import { createTypesFromSourceFile } from "./createTypes";
+import { createExportEndpoints } from "./createExportEndpoints";
 
 export const createRtkApi = (api: Api) => {
-  const statements: ts.Statement[] = [createApi(api)];
+  const statements: ts.Statement[] = [
+    createApi(api),
+    createExportEndpoints(api.endpoints),
+  ];
 
+  const importDeclarations = api.imports.join("\n");
   const typeDeclarations = createTypesFromSourceFile(api.types).join("\n");
 
   const newSourceFile = ts.factory.createSourceFile(
@@ -17,7 +22,11 @@ export const createRtkApi = (api: Api) => {
 
   const printer = ts.createPrinter();
   const result = printer.printFile(newSourceFile);
-  fs.writeFileSync("./bebra.ts", `${result}\n ${typeDeclarations}`, "utf-8");
+  fs.writeFileSync(
+    "./bebra.ts",
+    `${importDeclarations}\n${result}\n ${typeDeclarations}`,
+    "utf-8",
+  );
 
   return result;
 };

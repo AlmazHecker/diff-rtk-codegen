@@ -1,4 +1,3 @@
-import { Endpoint } from "../types/Endpoint";
 import { mergeQueryObjects } from "./mergeQueryObjects";
 import { Api } from "../types/Api";
 
@@ -8,15 +7,12 @@ import { Api } from "../types/Api";
  * - Retains custom properties from the original API
  * - Removes deleted APIs
  */
-export const mergeEndpoints = (
-  apiRtk: Api,
-  generatedRtk: Api,
-  overrides?: Record<string, any>,
-): Api => {
+export const mergeEndpoints = (apiRtk: Api, generatedRtk: Api): Api => {
   const mergedApi: Api = {
     tagTypes: apiRtk.tagTypes,
     endpoints: {},
     types: generatedRtk.types,
+    imports: apiRtk.imports,
   };
 
   const mergedEndpoints = mergedApi.endpoints;
@@ -36,21 +32,9 @@ export const mergeEndpoints = (
             apiEndpoint.queryObject,
           ),
 
-          args: {
-            ...generatedEndpoint.args,
-            ...apiEndpoint.args,
-          },
+          args: { ...generatedEndpoint.args, ...apiEndpoint.args },
         }
       : generatedEndpoint;
-  }
-
-  if (overrides) {
-    for (const [key, override] of Object.entries(overrides)) {
-      if (mergedEndpoints[key]) {
-        mergedEndpoints[key].args.responseType = override.responseType;
-        mergedEndpoints[key].args.argType = override.argType;
-      }
-    }
   }
 
   return mergedApi;

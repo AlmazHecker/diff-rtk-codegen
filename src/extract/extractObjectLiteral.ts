@@ -38,6 +38,12 @@ export const extractObjectLiteral = (
         } else {
           obj[propName] = propValue.getText();
         }
+        if (
+          ts.isFunctionExpression(propValue) ||
+          ts.isArrowFunction(propValue)
+        ) {
+          obj[propName] = propValue;
+        }
       }
     }
   });

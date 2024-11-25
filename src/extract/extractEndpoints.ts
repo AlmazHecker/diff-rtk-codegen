@@ -4,10 +4,7 @@ import { Endpoint } from "../types/Endpoint";
 import { extractObjectLiteral } from "./extractObjectLiteral";
 import { errorLog } from "../utils/log";
 
-/**
- * Extract endpoint details (arguments and configurations) from the source file
- */
-export const extractEndpoints = (
+const collectEndpoints = (
   endpointsBase: ts.ObjectLiteralExpression,
 ): Record<string, Endpoint> => {
   const endpoints: Record<string, Endpoint> = {};
@@ -62,4 +59,39 @@ export const extractEndpoints = (
   ts.forEachChild(endpointsBase, visit);
 
   return endpoints;
+};
+
+/**
+ * Extract endpoint details (arguments and configurations) from the source file
+ */
+export const extractEndpoints = (node: ts.CallExpression) => {
+  // { endpoints: (build) => ({}) }
+  const injectedEndpointsNode = node.arguments[0];
+  if (
+    !injectedEndpointsNode ||
+    !ts.isObjectLiteralExpression(injectedEndpointsNode)
+  ) {
+    return;
+  }
+  // endpoints: (build) => ({})
+  const endpointsProperty = injectedEndpointsNode.properties.find(
+    (prop) => prop.name && prop.name.getText() === "endpoints",
+  );
+
+  // if endpoints syntax is incorrect
+  if (!endpointsProperty || !ts.isPropertyAssignment(endpointsProperty)) return;
+
+  // (build) => ({ ...endpoints })
+  const endpointsFunction = endpointsProperty.initializer;
+  if (!ts.isArrowFunction(endpointsFunction)) return;
+
+  // ({ ...endpoints })
+  const block = endpointsFunction.body;
+  if (
+    ts.isParenthesizedExpression(block) &&
+    ts.isObjectLiteralExpression(block.expression)
+  ) {
+    // { ...endpoints }
+    return collectEndpoints(block.expression);
+  }
 };
