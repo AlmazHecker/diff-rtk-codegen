@@ -1,19 +1,25 @@
 import * as ts from "typescript";
 import { Endpoint } from "../types/Endpoint";
 import { QueryObject } from "../extract/extractQueryObject";
-import { createFunction } from "../utils/createFunction";
+import { recreateFunctionExpression } from "./createFunction";
 
 // values from query: { ... }
 type RecordType = ts.Node | Record<string, unknown> | string;
 
-const createObjectLiteralFromRecord = (record: RecordType) => {
+export const createObjectLiteralFromRecord = (record: RecordType) => {
   // @ts-ignore
   if (ts.isFunctionExpression(record) || ts.isArrowFunction(record)) {
-    return createFunction(record);
+    return recreateFunctionExpression(record);
   }
 
   if (typeof record === "string") {
     return ts.factory.createStringLiteral(record);
+  }
+
+  if (Array.isArray(record)) {
+    return ts.factory.createArrayLiteralExpression(
+      record.map((item) => ts.factory.createStringLiteral(item)),
+    );
   }
 
   return ts.factory.createObjectLiteralExpression(

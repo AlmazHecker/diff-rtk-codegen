@@ -14,13 +14,18 @@ const injectedRtkApi = api
           url: `/api/role/update`,
           method: "POST",
           body: queryArg.roleDto,
-          bebrachka: () => {
-            return "tester" + "bebras";
-          },
+
           responseHandler: (bobr) => bobr.json(),
         }),
+        bebrachka: () => {
+          const bebrov = 123;
+          return "tester" + bebrov;
+        },
         // responseHandler: (bobr) => "bebrachka",
         invalidatesTags: ["Roles"],
+        phone: {
+          random: "test",
+        },
       }),
       deleteApiRoleDel: build.mutation<
         DeleteApiRoleDelApiResponse,

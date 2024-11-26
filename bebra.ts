@@ -8,11 +8,17 @@ const injectedRtkApi = api
           url: "/api/role/update",
           method: "POST",
           body: "queryArg.roleDto",
-          bebrachka: () => "",
-          responseHandler: (bobr) => bobr.json(),
+          responseHandler: (bobr) => {
+            return bobr.json();
+          },
           params: { bebra: "queryArg.roleDto" },
         }),
+        bebrachka: () => {
+          const bebrov = 123;
+          return "tester" + bebrov;
+        },
         invalidatesTags: ["Roles"],
+        phone: { random: "test" },
       }),
       add1: build.mutation<Add1ApiResponse, Add1ApiArg>({
         query: (queryArg) => ({
@@ -72,7 +78,6 @@ export type GetLegalStatus1ApiResponse =
   /** status 200 Список прав успешно возвращен */ CommonEnumDto;
 export type GetLegalStatus1ApiArg = void;
 export type DeleteApiRoleDelApiResponse = unknown;
-
 export type DeleteApiRoleDelApiArg = {
   roleId: string;
 };

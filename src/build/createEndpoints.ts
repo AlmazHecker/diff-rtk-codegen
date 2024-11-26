@@ -1,7 +1,11 @@
 import * as ts from "typescript";
 import { Api } from "../types/Api";
-import { createQueryFunction } from "./createQueryFunction";
+import {
+  createObjectLiteralFromRecord,
+  createQueryFunction,
+} from "./createQueryFunction";
 import { Endpoint } from "../types/Endpoint";
+import { recreateFunctionExpression } from "./createFunction";
 
 export const generateEndpoints = (api: Api) => {
   return ts.factory.createPropertyAssignment(
@@ -49,19 +53,10 @@ const generatePropertyAssignment = (endpoint: Endpoint) => {
   const dynamicArgs: ts.PropertyAssignment[] = [];
 
   Object.entries(endpoint.args).forEach(([key, value]) => {
-    // @ts-ignore
-    if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) {
-      return dynamicArgs.push(ts.factory.createPropertyAssignment(key, value));
-    }
-
     dynamicArgs.push(
       ts.factory.createPropertyAssignment(
         key,
-        ts.factory.createArrayLiteralExpression(
-          Array.isArray(value)
-            ? value.map((item) => ts.factory.createStringLiteral(item))
-            : undefined,
-        ),
+        createObjectLiteralFromRecord(value),
       ),
     );
   });
