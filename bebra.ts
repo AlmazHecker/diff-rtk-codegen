@@ -1,74 +1,16 @@
 import { baseApi as api } from "../../../shared/api/baseApi";
-const injectedRtkApi = api
-  .enhanceEndpoints({ addTagTypes: ["Roles", "Permissions"] })
-  .injectEndpoints({
-    endpoints: (build) => ({
-      update1: build.mutation<Update1ApiResponse, Update1ApiArg>({
-        query: (queryArg) => ({
-          url: "/api/role/update",
-          method: "POST",
-          body: queryArg.roleDto,
-          responseHandler: (bobr) => {
-            return bobr.json();
-          },
+const injectedRtkApi = api.enhanceEndpoints({ addTagTypes: ["Roles", "Permissions"] }).injectEndpoints({ endpoints: build => ({ update1: build.mutation<Update1ApiResponse, Update1ApiArg>({ query: queryArg => ({ url: "/api/role/update", method: "POST", body: queryArg.roleDto, responseHandler: bobr => {
+                    return bobr.json();
+                }, params: { bebra: queryArg.roleDto } }), bebrachka: (test = "random") => {
+                const bebrov = 123;
+                return "tester" + bebrov;
+            }, invalidatesTags: ["Roles"], phone: { random: "test" } }), add1: build.mutation<Add1ApiResponse, Add1ApiArg>({ query: queryArg => ({ url: "/api/role/add", method: "POST", body: queryArg.roleDto }), invalidatesTags: ["Roles"] }), findAllByDtsIsEmpty2: build.query<FindAllByDtsIsEmpty2ApiResponse, FindAllByDtsIsEmpty2ApiArg>({ query: queryArg => ({ url: "/api/role" }), providesTags: ["Roles"] }), getLegalStatus1: build.query<GetLegalStatus1ApiResponse, GetLegalStatus1ApiArg>({ query: queryArg => ({ url: "/api/role/permissions" }), providesTags: ["Permissions"] }), deleteApiRoleDel: build.mutation<DeleteApiRoleDelApiResponse, DeleteApiRoleDelApiArg>({ query: queryArg => ({ url: "/api/role/del", method: "DELETE", params: { roleId: queryArg.roleId } }), invalidatesTags: ["Roles"] }) }) });
+export const { useUpdate1Mutation, useAdd1Mutation, useFindAllByDtsIsEmpty2Query, useGetLegalStatus1Query, useDeleteApiRoleDelMutation } = injectedRtkApi;
 
-          params: { bebra: queryArg.roleDto },
-        }),
-        bebrachka: (test = "random") => {
-          const bebrov = 123;
-          return "tester" + bebrov;
-        },
-        invalidatesTags: ["Roles"],
-        phone: { random: "test" },
-      }),
-      add1: build.mutation<Add1ApiResponse, Add1ApiArg>({
-        query: (queryArg) => ({
-          url: "/api/role/add",
-          method: "POST",
-          body: queryArg.roleDto,
-        }),
-        invalidatesTags: ["Roles"],
-      }),
-      findAllByDtsIsEmpty2: build.query<
-        FindAllByDtsIsEmpty2ApiResponse,
-        FindAllByDtsIsEmpty2ApiArg
-      >({
-        query: (queryArg) => ({ url: "/api/role" }),
-        providesTags: ["Roles"],
-      }),
-      getLegalStatus1: build.query<
-        GetLegalStatus1ApiResponse,
-        GetLegalStatus1ApiArg
-      >({
-        query: (queryArg) => ({ url: "/api/role/permissions" }),
-        providesTags: ["Permissions"],
-      }),
-      deleteApiRoleDel: build.mutation<
-        DeleteApiRoleDelApiResponse,
-        DeleteApiRoleDelApiArg
-      >({
-        query: (queryArg) => ({
-          url: "/api/role/del",
-          method: "DELETE",
-          params: { roleId: queryArg.roleId },
-        }),
-        invalidatesTags: ["Roles"],
-      }),
-    }),
-  });
-export const {
-  useUpdate1Mutation,
-  useAdd1Mutation,
-  useFindAllByDtsIsEmpty2Query,
-  useGetLegalStatus1Query,
-  useDeleteApiRoleDelMutation,
-} = injectedRtkApi;
-
-export type Update1ApiResponse = unknown;
+ export type Update1ApiResponse = unknown;
 export type Update1ApiArg = {
   roleDto: RoleDto;
 };
-
 export type Add1ApiResponse = unknown;
 export type Add1ApiArg = {
   roleDto: RoleDto;

@@ -17,7 +17,6 @@ export const createObjectLiteralFromRecord = (record: QueryObject[1]) => {
   }
 
   if (record.kind === 211) {
-    // console.log("bobr", record.getText());
     return record;
   }
   if (Array.isArray(record)) {
@@ -47,7 +46,7 @@ export const createObjectLiteralFromRecord = (record: QueryObject[1]) => {
 
       return ts.factory.createPropertyAssignment(
         key,
-        ts.factory.createStringLiteral(String(value)),
+        ts.factory.createStringLiteral(value),
       );
     }),
   );
