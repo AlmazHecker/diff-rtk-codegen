@@ -1,8 +1,6 @@
 import * as ts from "typescript";
 import { Endpoint } from "../types/Endpoint";
-
-const capitalizeFirstLetter = (str: string) =>
-  str.charAt(0).toUpperCase() + str.slice(1);
+import { capitalizeFirstLetter } from "../utils/string";
 
 export const createExportEndpoints = (
   endpoints: Record<string, Endpoint>,
@@ -20,7 +18,7 @@ export const createExportEndpoints = (
     );
   });
 
-  const exportStatement = ts.factory.createVariableStatement(
+  return ts.factory.createVariableStatement(
     [ts.factory.createToken(ts.SyntaxKind.ExportKeyword)],
     ts.factory.createVariableDeclarationList(
       [
@@ -34,6 +32,4 @@ export const createExportEndpoints = (
       ts.NodeFlags.Const,
     ),
   );
-
-  return exportStatement;
 };

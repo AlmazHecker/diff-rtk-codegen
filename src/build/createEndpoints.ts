@@ -5,7 +5,6 @@ import {
   createQueryFunction,
 } from "./createQueryFunction";
 import { Endpoint } from "../types/Endpoint";
-import { createFunction } from "../utils/createFunction";
 
 export const generateEndpoints = (api: Api) => {
   return ts.factory.createPropertyAssignment(

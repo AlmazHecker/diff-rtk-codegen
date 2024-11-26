@@ -1,10 +1,10 @@
 import * as ts from "typescript";
-import { NewLineKind } from "typescript";
 import * as fs from "fs";
 import { Api } from "../types/Api";
 import { createApi } from "./createApi";
 import { createTypesFromSourceFile } from "./createTypes";
 import { createExportEndpoints } from "./createExportEndpoints";
+import { createASTFromStatements } from "../utils/ast";
 
 export const createRtkApi = (api: Api) => {
   const statements: ts.Statement[] = [
@@ -15,14 +15,10 @@ export const createRtkApi = (api: Api) => {
   const importDeclarations = api.imports.join("\n");
   const typeDeclarations = createTypesFromSourceFile(api.types).join("\n");
 
-  const newSourceFile = ts.factory.createSourceFile(
-    statements,
-    ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
-    ts.NodeFlags.None,
-  );
+  const sourceFile = createASTFromStatements(statements);
 
   const printer = ts.createPrinter();
-  const result = printer.printFile(newSourceFile);
+  const result = printer.printFile(sourceFile);
   fs.writeFileSync(
     "./bebra.ts",
     `${importDeclarations}\n${result}\n ${typeDeclarations}`,

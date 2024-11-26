@@ -3,6 +3,7 @@ import { extractQueryObject } from "./extractQueryObject";
 import { Endpoint } from "../types/Endpoint";
 import { extractObjectLiteral } from "./extractObjectLiteral";
 import { errorLog } from "../utils/log";
+import { getProperty, isObject } from "../utils/ast";
 
 const collectEndpoints = (
   endpointsBase: ts.ObjectLiteralExpression,
@@ -24,22 +25,18 @@ const collectEndpoints = (
           expressionText === "build.query"
         ) {
           const configArg = value.arguments[0];
-          if (!configArg || !ts.isObjectLiteralExpression(configArg)) {
-            errorLog(
-              `Skipping invalid or missing config object for endpoint: ${endpointName}`,
+          if (!isObject(configArg)) {
+            throw errorLog(
+              `Invalid or missing config object for endpoint: ${endpointName}`,
             );
-            return;
           }
 
-          const queryProp = configArg.properties.find(
-            (p) => p.name && p.name.getText() === "query",
-          );
+          const queryProp = getProperty(configArg, "query", true);
 
           if (!queryProp || !ts.isPropertyAssignment(queryProp)) {
-            errorLog(
+            throw errorLog(
               `Skipping invalid or missing 'query' property for endpoint: ${endpointName}`,
             );
-            return;
           }
 
           const queryFunction = queryProp.initializer;
@@ -64,19 +61,10 @@ const collectEndpoints = (
 /**
  * Extract endpoint details (arguments and configurations) from the source file
  */
-export const extractEndpoints = (node: ts.CallExpression) => {
-  // { endpoints: (build) => ({}) }
-  const injectedEndpointsNode = node.arguments[0];
-  if (
-    !injectedEndpointsNode ||
-    !ts.isObjectLiteralExpression(injectedEndpointsNode)
-  ) {
-    return;
-  }
-  // endpoints: (build) => ({})
-  const endpointsProperty = injectedEndpointsNode.properties.find(
-    (prop) => prop.name && prop.name.getText() === "endpoints",
-  );
+export const extractEndpoints = (injectedEndpointsNode: ts.Expression) => {
+  if (!isObject(injectedEndpointsNode)) return;
+
+  const endpointsProperty = getProperty(injectedEndpointsNode, "endpoints");
 
   // if endpoints syntax is incorrect
   if (!endpointsProperty || !ts.isPropertyAssignment(endpointsProperty)) return;

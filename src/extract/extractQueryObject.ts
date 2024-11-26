@@ -2,9 +2,10 @@ import * as ts from "typescript";
 import { extractObjectLiteral } from "./extractObjectLiteral";
 import { errorLog } from "../utils/log";
 
-export type QueryObject = Record<string, string | Record<string, string>> & {
-  // params: Record<string, unknown>;
-};
+export type QueryObject = Record<
+  string,
+  string | Record<string, string> | ts.PropertyAccessExpression
+>;
 
 /**
  * Extract the return value of the query function (which is an object literal)

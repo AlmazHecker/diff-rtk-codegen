@@ -2,7 +2,7 @@ import * as ts from "typescript";
 import { Api } from "../types/Api";
 import { extractEndpoints } from "./extractEndpoints";
 import { extractTagTypes } from "./extractTagTypes";
-import { extractImport } from "./extractImport";
+import { getNodeText, isType } from "../utils/ast";
 
 /**
  * Extract endpoint details (arguments and configurations) from the source file
@@ -17,9 +17,9 @@ export const extractApi = (sourceFile: ts.SourceFile): Api => {
 
   function visit(node: ts.Node) {
     if (ts.isImportDeclaration(node)) {
-      rtkApi.imports.push(extractImport(node));
+      rtkApi.imports.push(getNodeText(node));
     }
-    if (ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) {
+    if (isType(node)) {
       rtkApi.types.push(node);
     }
     if (
@@ -28,10 +28,10 @@ export const extractApi = (sourceFile: ts.SourceFile): Api => {
     ) {
       const expressionText = node.expression.name.escapedText;
       if (expressionText === "enhanceEndpoints") {
-        rtkApi.tagTypes = extractTagTypes(node);
+        rtkApi.tagTypes = extractTagTypes(node.arguments[0]);
       }
       if (expressionText === "injectEndpoints") {
-        rtkApi.endpoints = extractEndpoints(node);
+        rtkApi.endpoints = extractEndpoints(node.arguments[0]);
       }
     }
 

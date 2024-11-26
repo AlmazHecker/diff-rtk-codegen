@@ -1,27 +1,19 @@
 import * as ts from "typescript";
 import { errorLog } from "../utils/log";
+import { getProperty, isArray, isObject } from "../utils/ast";
 
-export const extractTagTypes = (node: ts.CallExpression) => {
-  const enhanceEndpointsNode = node.arguments[0];
-  if (
-    !enhanceEndpointsNode ||
-    !ts.isObjectLiteralExpression(enhanceEndpointsNode)
-  ) {
-    return;
-  }
-  // rtkApi.tagTypes = extractTagTypes(enhanceEndpointsNode);
+export const extractTagTypes = (enhanceEndpointsNode: ts.Expression) => {
+  if (!isObject(enhanceEndpointsNode)) return;
 
-  const tagTypesProperty = enhanceEndpointsNode.properties.find(
-    (prop) => prop.name && prop.name.getText() === "addTagTypes",
-  );
-  if (tagTypesProperty && "initializer" in tagTypesProperty) {
-    const initializer = tagTypesProperty.initializer;
-    if (initializer.kind === ts.SyntaxKind.ArrayLiteralExpression) {
-      return (initializer as ts.ArrayLiteralExpression).elements.map((el) => {
-        return (el as ts.StringLiteral).text;
-      });
-    } else {
-      throw errorLog("Initializer is not an array literal.");
-    }
+  const tagTypesProperty = getProperty(enhanceEndpointsNode, "addTagTypes");
+
+  const initializer = (tagTypesProperty as ts.PropertyAssignment).initializer;
+
+  if (!isArray(initializer)) {
+    throw errorLog("Initializer is not an array literal.");
   }
+
+  return (initializer as ts.ArrayLiteralExpression).elements.map((el) => {
+    return (el as ts.StringLiteral).text;
+  });
 };

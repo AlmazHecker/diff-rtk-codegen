@@ -23,6 +23,11 @@ export const extractObjectLiteral = (
     // if (!propName || !propValue) return;
 
     if (propName && propValue) {
+      if (ts.isPropertyAccessExpression(propValue)) {
+        obj[propName] = propValue;
+        return;
+      }
+
       if (ts.isObjectLiteralExpression(propValue)) {
         obj[propName] = extractObjectLiteral(propValue);
       } else if (ts.isArrayLiteralExpression(propValue)) {

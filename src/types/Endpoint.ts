@@ -7,6 +7,6 @@ export type Endpoint = {
   type: "build.mutation" | "build.query";
 
   // Additional args of the endpoints object
-  args: Record<string, unknown>;
+  args: QueryObject;
   typeArguments: ts.NodeArray<ts.TypeNode>;
 };
