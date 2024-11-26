@@ -1,7 +1,6 @@
 import * as ts from "typescript";
 import { Api } from "../types/Api";
 import { createQueryFunction } from "./createQueryFunction";
-import { createEndpointParams } from "./createEndpointParams";
 import { Endpoint } from "../types/Endpoint";
 
 export const generateEndpoints = (api: Api) => {
@@ -15,7 +14,6 @@ export const generateEndpoints = (api: Api) => {
           undefined,
           undefined,
           "build",
-
           undefined,
           undefined,
           undefined,
@@ -23,9 +21,11 @@ export const generateEndpoints = (api: Api) => {
       ],
       undefined,
       ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      ts.factory.createObjectLiteralExpression(
-        Object.entries(api.endpoints).map(([name, endpoint]) =>
-          generateEndpoint(name, endpoint),
+      ts.factory.createParenthesizedExpression(
+        ts.factory.createObjectLiteralExpression(
+          Object.entries(api.endpoints).map(([name, endpoint]) =>
+            generateEndpoint(name, endpoint),
+          ),
         ),
       ),
     ),
@@ -46,8 +46,28 @@ const generateEndpoint = (name: string, endpoint: Endpoint) => {
 
 // Generates the property assignments for query, method, body, and invalidatesTags
 const generatePropertyAssignment = (endpoint: Endpoint) => {
+  const dynamicArgs: ts.PropertyAssignment[] = [];
+
+  Object.entries(endpoint.args).forEach(([key, value]) => {
+    // @ts-ignore
+    if (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) {
+      return dynamicArgs.push(ts.factory.createPropertyAssignment(key, value));
+    }
+
+    dynamicArgs.push(
+      ts.factory.createPropertyAssignment(
+        key,
+        ts.factory.createArrayLiteralExpression(
+          Array.isArray(value)
+            ? value.map((item) => ts.factory.createStringLiteral(item))
+            : undefined,
+        ),
+      ),
+    );
+  });
+
   return ts.factory.createObjectLiteralExpression([
-    createQueryFunction(endpoint),
-    ...createEndpointParams(endpoint),
+    createQueryFunction(endpoint.queryObject),
+    ...dynamicArgs,
   ]);
 };

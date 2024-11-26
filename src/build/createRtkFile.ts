@@ -1,4 +1,5 @@
 import * as ts from "typescript";
+import { NewLineKind } from "typescript";
 import * as fs from "fs";
 import { Api } from "../types/Api";
 import { createApi } from "./createApi";

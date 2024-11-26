@@ -1,5 +1,7 @@
 import * as ts from "typescript";
 import { Endpoint } from "../types/Endpoint";
+import { QueryObject } from "../extract/extractQueryObject";
+import { createFunction } from "../utils/createFunction";
 
 // values from query: { ... }
 type RecordType = ts.Node | Record<string, unknown> | string;
@@ -7,7 +9,7 @@ type RecordType = ts.Node | Record<string, unknown> | string;
 const createObjectLiteralFromRecord = (record: RecordType) => {
   // @ts-ignore
   if (ts.isFunctionExpression(record) || ts.isArrowFunction(record)) {
-    return record;
+    return createFunction(record);
   }
 
   if (typeof record === "string") {
@@ -38,7 +40,7 @@ const createObjectLiteralFromRecord = (record: RecordType) => {
   );
 };
 
-export const createQueryFunction = (endpoint: Endpoint) => {
+export const createQueryFunction = (queryObject: QueryObject) => {
   return ts.factory.createPropertyAssignment(
     "query",
     ts.factory.createArrowFunction(
@@ -56,14 +58,16 @@ export const createQueryFunction = (endpoint: Endpoint) => {
       ],
       undefined,
       ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
-      ts.factory.createObjectLiteralExpression([
-        ...Object.entries(endpoint.queryObject).map(([key, value]) => {
-          return ts.factory.createPropertyAssignment(
-            key,
-            createObjectLiteralFromRecord(value as Record<string, any>),
-          );
-        }),
-      ]),
+      ts.factory.createParenthesizedExpression(
+        ts.factory.createObjectLiteralExpression([
+          ...Object.entries(queryObject).map(([key, value]) => {
+            return ts.factory.createPropertyAssignment(
+              key,
+              createObjectLiteralFromRecord(value as Record<string, any>),
+            );
+          }),
+        ]),
+      ),
     ),
   );
 };

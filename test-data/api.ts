@@ -15,11 +15,11 @@ const injectedRtkApi = api
           method: "POST",
           body: queryArg.roleDto,
           bebrachka: () => {
-            return variable;
+            return "tester" + "bebras";
           },
-          responseHandler: () => {},
+          responseHandler: (bobr) => bobr.json(),
         }),
-        responseHandler: () => {},
+        // responseHandler: (bobr) => "bebrachka",
         invalidatesTags: ["Roles"],
       }),
       deleteApiRoleDel: build.mutation<
