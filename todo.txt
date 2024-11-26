@@ -1,0 +1,3 @@
+process queryArg object properties as Identifier(for now they are being processed as string)
+Create overrides for types
+Refactor code
