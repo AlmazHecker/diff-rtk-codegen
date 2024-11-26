@@ -1,7 +1,7 @@
 import * as ts from "typescript";
 import { Endpoint } from "../types/Endpoint";
 import { QueryObject } from "../extract/extractQueryObject";
-import { recreateFunctionExpression } from "./createFunction";
+import { createFunction } from "../utils/createFunction";
 
 // values from query: { ... }
 type RecordType = ts.Node | Record<string, unknown> | string;
@@ -9,7 +9,7 @@ type RecordType = ts.Node | Record<string, unknown> | string;
 export const createObjectLiteralFromRecord = (record: RecordType) => {
   // @ts-ignore
   if (ts.isFunctionExpression(record) || ts.isArrowFunction(record)) {
-    return recreateFunctionExpression(record);
+    return createFunction(record);
   }
 
   if (typeof record === "string") {

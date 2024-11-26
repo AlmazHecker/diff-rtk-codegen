@@ -17,7 +17,7 @@ const injectedRtkApi = api
 
           responseHandler: (bobr) => bobr.json(),
         }),
-        bebrachka: () => {
+        bebrachka: (test = "random") => {
           const bebrov = 123;
           return "tester" + bebrov;
         },

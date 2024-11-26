@@ -13,7 +13,7 @@ const injectedRtkApi = api
           },
           params: { bebra: "queryArg.roleDto" },
         }),
-        bebrachka: () => {
+        bebrachka: (test = "random") => {
           const bebrov = 123;
           return "tester" + bebrov;
         },

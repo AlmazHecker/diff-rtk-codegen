@@ -1,9 +1,8 @@
 import * as ts from "typescript";
 
-export function recreateFunctionExpression(
+export function createFunction(
   value: ts.FunctionExpression | ts.ArrowFunction,
 ): ts.FunctionExpression | ts.ArrowFunction {
-  // Step 1: Preserve parameters
   const parameters = value.parameters.map((param) =>
     ts.factory.createParameterDeclaration(
       param.modifiers,
@@ -11,13 +10,12 @@ export function recreateFunctionExpression(
       param.name,
       param.questionToken,
       param.type,
-      param.initializer,
+      traverseAndHandleLiterals(param.initializer),
     ),
   );
 
-  // Step 2: Traverse and recreate the body
   const body = ts.isBlock(value.body)
-    ? traverseAndHandleLiterals(value.body) // Traverse the block for literals
+    ? traverseAndHandleLiterals(value.body)
     : ts.factory.createBlock(
         [
           ts.factory.createReturnStatement(
@@ -27,7 +25,6 @@ export function recreateFunctionExpression(
         true,
       );
 
-  // Step 3: Recreate the function expression
   if (ts.isArrowFunction(value)) {
     return ts.factory.createArrowFunction(
       value.modifiers,
